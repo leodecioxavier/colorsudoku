@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sudoku de Cores</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f0f0f0;
+      text-align: center;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(6, 60px);
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+
+    .cell {
+      width: 60px;
+      height: 60px;
+      background-color: #fff;
+      border: 2px solid #999;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .palette {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .ball {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: grab;
+      border: 2px solid #555;
+    }
+
+    .message {
+      margin-top: 10px;
+      font-weight: bold;
+      color: green;
+    }
+
+    .button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #instructions {
+      background-color: #fff;
+      border: 2px solid #ccc;
+      padding: 20px;
+      max-width: 500px;
+      margin: 0 auto 30px auto;
+      text-align: left;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Sudoku de Cores</h1>
+
+  <div id="instructions">
+    <h2>Como jogar:</h2>
+    <ul>
+      <li>Arraste as bolinhas coloridas para os espaços do tabuleiro (3 linhas x 6 colunas).</li>
+      <li>Você deve usar todas as bolinhas disponíveis: nenhuma cor pode se repetir na mesma linha ou coluna.</li>
+      <li>Não pode haver bolinhas da mesma cor em casas adjacentes (nem mesmo nas diagonais).</li>
+      <li>Você pode arrastar bolinhas de volta para a paleta ou substituir uma já colocada.</li>
+    </ul>
+    <p>Boa sorte!</p>
+    <button class="button" onclick="iniciarJogo()">Iniciar Jogo</button>
+  </div>
+
+  <div class="board" id="board" style="display:none;"></div>
+  <div class="palette" id="palette" style="display:none;"></div>
+  <div class="message" id="message"></div>
+  <button class="button" onclick="reiniciarJogo()" id="btnReiniciar" style="display:none;">Reiniciar Jogo</button>
+
+  <audio id="sound-drop" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_c6b31dc3cb.mp3?filename=click-124467.mp3"></audio>
+  <audio id="sound-win" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_1418bfa15b.mp3?filename=success-1-6297.mp3"></audio>
+
+  <script>
+    const colors = [
+      { name: 'vermelho', code: '#e74c3c', count: 3 },
+      { name: 'amarelo', code: '#f1c40f', count: 3 },
+      { name: 'verde', code: '#2ecc71', count: 3 },
+      { name: 'azul-escuro', code: '#2980b9', count: 2 },
+      { name: 'azul-claro', code: '#5dade2', count: 2 },
+      { name: 'rosa', code: '#ff69b4', count: 2 },
+      { name: 'branco', code: '#ecf0f1', count: 3 },
+    ];
+
+    const board = document.getElementById('board');
+    const palette = document.getElementById('palette');
+    const message = document.getElementById('message');
+    const soundDrop = document.getElementById('sound-drop');
+    const soundWin = document.getElementById('sound-win');
+
+    const cells = [];
+
+    function criarTabuleiro() {
+      board.innerHTML = '';
+      cells.length = 0;
+      for (let i = 0; i < 18; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.index = i;
+        cell.addEventListener('dragover', e => e.preventDefault());
+        cell.addEventListener('drop', handleDrop);
+        board.appendChild(cell);
+        cells.push(cell);
+      }
+    }
+
+    function criarPaleta() {
+      palette.innerHTML = '';
+      colors.forEach(color => {
+        for (let i = 0; i < color.count; i++) {
+          const ball = document.createElement('div');
+          ball.className = 'ball';
+          ball.style.backgroundColor = color.code;
+          ball.setAttribute('draggable', true);
+          ball.dataset.color = color.name;
+          ball.dataset.id = `${color.name}-${i}`;
+          ball.addEventListener('dragstart', handleDragStart);
+          palette.appendChild(ball);
+        }
+      });
+    }
+
+    function handleDragStart(e) {
+      const ball = e.target;
+      e.dataTransfer.setData('id', ball.dataset.id);
+    }
+
+    function handleDrop(e) {
+      const targetCell = e.target.closest('.cell');
+      if (!targetCell) return;
+
+      const ballId = e.dataTransfer.getData('id');
+      const ball = document.querySelector(`.ball[data-id='${ballId}']`);
+      if (!ball) return;
+
+      const existing = targetCell.querySelector('.ball');
+      if (existing) palette.appendChild(existing);
+
+      const previousParent = ball.parentElement;
+      if (previousParent.classList.contains('cell')) {
+        previousParent.innerHTML = '';
+      }
+
+      targetCell.appendChild(ball);
+      soundDrop.play();
+      checkWin();
+    }
+
+    palette.addEventListener('dragover', e => e.preventDefault());
+    palette.addEventListener('drop', e => {
+      const ballId = e.dataTransfer.getData('id');
+      const ball = document.querySelector(`.ball[data-id='${ballId}']`);
+      if (!ball) return;
+
+      const previousParent = ball.parentElement;
+      if (previousParent.classList.contains('cell')) {
+        previousParent.innerHTML = '';
+      }
+
+      palette.appendChild(ball);
+      soundDrop.play();
+      checkWin();
+    });
+
+    function checkWin() {
+      const grid = Array(3).fill(null).map(() => Array(6).fill(null));
+
+      cells.forEach((cell, i) => {
+        const row = Math.floor(i / 6);
+        const col = i % 6;
+        const ball = cell.querySelector('.ball');
+        if (ball) grid[row][col] = ball.dataset.color;
+      });
+
+      if (grid.flat().includes(null)) {
+        message.textContent = '';
+        return;
+      }
+
+      for (let i = 0; i < 3; i++) {
+        const seen = new Set();
+        for (let j = 0; j < 6; j++) {
+          if (seen.has(grid[i][j])) {
+            message.textContent = '';
+            return;
+          }
+          seen.add(grid[i][j]);
+        }
+      }
+
+      for (let j = 0; j < 6; j++) {
+        const seen = new Set();
+        for (let i = 0; i < 3; i++) {
+          if (seen.has(grid[i][j])) {
+            message.textContent = '';
+            return;
+          }
+          seen.add(grid[i][j]);
+        }
+      }
+
+      const directions = [
+        [-1, 0], [1, 0], [0, -1], [0, 1],
+        [-1, -1], [-1, 1], [1, -1], [1, 1]
+      ];
+
+      for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 6; j++) {
+          for (const [dx, dy] of directions) {
+            const ni = i + dx;
+            const nj = j + dy;
+            if (ni >= 0 && ni < 3 && nj >= 0 && nj < 6) {
+              if (grid[i][j] === grid[ni][nj]) {
+                message.textContent = '';
+                return;
+              }
+            }
+          }
+        }
+      }
+
+      message.textContent = 'Parabéns! Você resolveu o puzzle!';
+      soundWin.play();
+    }
+
+    function reiniciarJogo() {
+      message.textContent = '';
+      criarTabuleiro();
+      criarPaleta();
+    }
+
+    function iniciarJogo() {
+      document.getElementById('instructions').style.display = 'none';
+      board.style.display = 'grid';
+      palette.style.display = 'flex';
+      document.getElementById('btnReiniciar').style.display = 'inline-block';
+      reiniciarJogo();
+    }
+  </script>
+</body>
+</html>
