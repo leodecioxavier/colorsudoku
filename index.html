@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Sudoku de Cores</title>
   <style>
     body {
@@ -13,15 +13,11 @@
       padding: 20px;
       transition: background-color 0.3s, color 0.3s;
     }
-
     body.dark-mode {
       background-color: #121212;
       color: #fff;
     }
-
-    h1 {
-      margin-bottom: 10px;
-    }
+    h1 { margin-bottom: 10px; }
 
     .board {
       display: grid;
@@ -30,7 +26,6 @@
       justify-content: center;
       margin-bottom: 30px;
     }
-
     .cell {
       width: 60px;
       height: 60px;
@@ -49,7 +44,6 @@
       gap: 10px;
       margin-bottom: 20px;
     }
-
     .ball {
       width: 40px;
       height: 40px;
@@ -61,7 +55,7 @@
     .message {
       margin-top: 10px;
       font-weight: bold;
-      color: green;
+      color: green; /* cor padrão para vitória */
     }
 
     .button {
@@ -80,7 +74,6 @@
       text-align: left;
       border-radius: 10px;
     }
-
     body.dark-mode #instructions {
       background-color: #1e1e1e;
       border-color: #555;
@@ -89,7 +82,6 @@
 </head>
 <body>
   <h1 id="game-title">Sudoku de Cores</h1>
-
   <div>
     <label for="lang-select" id="label-language">Idioma:</label>
     <select id="lang-select" onchange="mudarIdioma()">
@@ -139,7 +131,8 @@
         restartGame: "Reiniciar Jogo",
         language: "Idioma:",
         toggleMode: "Modo Escuro / Claro",
-        winMessage: "Parabéns! Você resolveu o puzzle!"
+        winMessage: "Parabéns! Você resolveu o puzzle!",
+        errorMessage: "Tabuleiro preenchido, mas ainda há posições incorretas. Continue tentando!"
       },
       en: {
         title: "Color Sudoku",
@@ -156,7 +149,8 @@
         restartGame: "Restart Game",
         language: "Language:",
         toggleMode: "Dark / Light Mode",
-        winMessage: "Congratulations! You solved the puzzle!"
+        winMessage: "Congratulations! You solved the puzzle!",
+        errorMessage: "Board is full, but there are still errors. Keep trying!"
       },
       es: {
         title: "Sudoku de Colores",
@@ -173,25 +167,26 @@
         restartGame: "Reiniciar Juego",
         language: "Idioma:",
         toggleMode: "Modo Oscuro / Claro",
-        winMessage: "¡Felicidades! ¡Has resuelto el rompecabezas!"
+        winMessage: "¡Felicidades! ¡Has resuelto el rompecabezas!",
+        errorMessage: "Tablero completo, pero aún hay errores. ¡Sigue intentando!"
       }
     };
 
     // Elementos do DOM
-    const board = document.getElementById('board');
-    const palette = document.getElementById('palette');
-    const message = document.getElementById('message');
+    const board     = document.getElementById('board');
+    const palette   = document.getElementById('palette');
+    const messageEl = document.getElementById('message');
     const soundDrop = document.getElementById('sound-drop');
-    const soundWin = document.getElementById('sound-win');
-    const cells = [];
-    const colors = [
-      { name: 'vermelho', code: '#e74c3c', count: 3 },
-      { name: 'amarelo', code: '#f1c40f', count: 3 },
-      { name: 'verde', code: '#2ecc71', count: 3 },
+    const soundWin  = document.getElementById('sound-win');
+    const cells     = [];
+    const colors    = [
+      { name: 'vermelho',    code: '#e74c3c', count: 3 },
+      { name: 'amarelo',     code: '#f1c40f', count: 3 },
+      { name: 'verde',       code: '#2ecc71', count: 3 },
       { name: 'azul-escuro', code: '#2980b9', count: 2 },
-      { name: 'azul-claro', code: '#5dade2', count: 2 },
-      { name: 'rosa', code: '#ff69b4', count: 2 },
-      { name: 'branco', code: '#ecf0f1', count: 3 }
+      { name: 'azul-claro',  code: '#5dade2', count: 2 },
+      { name: 'rosa',        code: '#ff69b4', count: 2 },
+      { name: 'branco',      code: '#ecf0f1', count: 3 }
     ];
 
     function criarTabuleiro() {
@@ -231,13 +226,15 @@
     function handleDrop(e) {
       const target = e.target.closest('.cell');
       if (!target) return;
-      const id = e.dataTransfer.getData('id');
+      const id   = e.dataTransfer.getData('id');
       const ball = document.querySelector(`.ball[data-id="${id}"]`);
       if (!ball) return;
       const existing = target.querySelector('.ball');
       if (existing) palette.appendChild(existing);
+
       const prev = ball.parentElement;
       if (prev.classList.contains('cell')) prev.innerHTML = '';
+
       target.appendChild(ball);
       soundDrop.play();
       checkWin();
@@ -245,7 +242,8 @@
 
     palette.addEventListener('dragover', e => e.preventDefault());
     palette.addEventListener('drop', e => {
-      const id = e.dataTransfer.getData('id');
+      e.preventDefault();  // garante que o drop seja aceito sempre
+      const id   = e.dataTransfer.getData('id');
       const ball = document.querySelector(`.ball[data-id="${id}"]`);
       if (!ball) return;
       const prev = ball.parentElement;
@@ -256,39 +254,88 @@
     });
 
     function checkWin() {
+      const lang = document.getElementById('lang-select').value;
+      const t    = translations[lang];
+
+      // monta a grade 3x6
       const grid = Array.from({ length: 3 }, () => Array(6).fill(null));
       cells.forEach((c, i) => {
-        const r = Math.floor(i / 6);
-        const cidx = i % 6;
+        const r = Math.floor(i / 6), ci = i % 6;
         const b = c.querySelector('.ball');
-        if (b) grid[r][cidx] = b.dataset.color;
+        if (b) grid[r][ci] = b.dataset.color;
       });
-      if (grid.flat().includes(null)) { message.textContent = ''; return; }
-      // checa linhas e colunas
-      for (let i=0;i<3;i++){
-        const s=new Set();
-        for (let j=0;j<6;j++){ if(s.has(grid[i][j])){ message.textContent=''; return;} s.add(grid[i][j]); }
+
+      // se ainda houver espaço vazio, limpa mensagem e volta ao estado padrão
+      if (grid.flat().includes(null)) {
+        messageEl.textContent = '';
+        messageEl.style.color = ''; 
+        return;
       }
-      for (let j=0;j<6;j++){
-        const s=new Set();
-        for (let i=0;i<3;i++){ if(s.has(grid[i][j])){ message.textContent=''; return;} s.add(grid[i][j]); }
+
+      // valida linhas
+      for (let i = 0; i < 3; i++) {
+        const s = new Set();
+        for (let j = 0; j < 6; j++) {
+          if (s.has(grid[i][j])) {
+            messageEl.textContent = t.errorMessage;
+            messageEl.style.color = 'red';
+            return;
+          }
+          s.add(grid[i][j]);
+        }
       }
-      // checa adjacência
-      const dirs=[[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
-      for (let i=0;i<3;i++) for(let j=0;j<6;j++) for(const [dx,dy] of dirs){ const ni=i+dx, nj=j+dy; if(ni>=0&&ni<3&&nj>=0&&nj<6&&grid[i][j]===grid[ni][nj]){ message.textContent=''; return;} }
-      message.textContent = translations[document.getElementById('lang-select').value].winMessage;
+
+      // valida colunas
+      for (let j = 0; j < 6; j++) {
+        const s = new Set();
+        for (let i = 0; i < 3; i++) {
+          if (s.has(grid[i][j])) {
+            messageEl.textContent = t.errorMessage;
+            messageEl.style.color = 'red';
+            return;
+          }
+          s.add(grid[i][j]);
+        }
+      }
+
+      // valida adjacências (incluindo diagonais)
+      const dirs = [
+        [-1,0],[1,0],[0,-1],[0,1],
+        [-1,-1],[-1,1],[1,-1],[1,1]
+      ];
+      for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 6; j++) {
+          for (const [dx, dy] of dirs) {
+            const ni = i + dx, nj = j + dy;
+            if (
+              ni >= 0 && ni < 3 &&
+              nj >= 0 && nj < 6 &&
+              grid[i][j] === grid[ni][nj]
+            ) {
+              messageEl.textContent = t.errorMessage;
+              messageEl.style.color = 'red';
+              return;
+            }
+          }
+        }
+      }
+
+      // tudo certo → vitória
+      messageEl.textContent = t.winMessage;
+      messageEl.style.color = 'green';
       soundWin.play();
     }
 
     function reiniciarJogo() {
-      message.textContent = '';
+      messageEl.textContent = '';
+      messageEl.style.color = '';
       criarTabuleiro();
       criarPaleta();
     }
 
     function iniciarJogo() {
       document.getElementById('instructions').style.display = 'none';
-      board.style.display = 'grid';
+      board.style.display   = 'grid';
       palette.style.display = 'flex';
       document.getElementById('btnReiniciar').style.display = 'inline-block';
       document.getElementById('btnInstrucoes').style.display = 'inline-block';
@@ -307,27 +354,34 @@
 
     function atualizarIdioma() {
       const lang = document.getElementById('lang-select').value;
-      const t = translations[lang];
-      document.getElementById('game-title').textContent = t.title;
+      const t    = translations[lang];
+
+      document.getElementById('game-title').textContent        = t.title;
       document.getElementById('instructions-title').textContent = t.howToPlay;
-      const items = document.querySelectorAll('#instructions-list li');
-      items.forEach((li, i) => li.textContent = t.instructions[i]);
+      document.querySelectorAll('#instructions-list li')
+        .forEach((li, i) => li.textContent = t.instructions[i]);
       document.getElementById('instructions-goodluck').textContent = t.goodLuck;
-      document.getElementById('btnStartGame').textContent = t.startGame;
-      document.getElementById('btnReiniciar').textContent = t.restartGame;
-      document.getElementById('btnInstrucoes').textContent = t.seeInstructions;
-      document.getElementById('label-language').textContent = t.language;
-      document.getElementById('btnToggleMode').textContent = t.toggleMode;
-      // atualiza mensagem de vitória se já ganhou
-      if (message.textContent) message.textContent = t.winMessage;
+      document.getElementById('btnStartGame').textContent        = t.startGame;
+      document.getElementById('btnReiniciar').textContent        = t.restartGame;
+      document.getElementById('btnInstrucoes').textContent       = t.seeInstructions;
+      document.getElementById('label-language').textContent      = t.language;
+      document.getElementById('btnToggleMode').textContent       = t.toggleMode;
+
+      // se já havia mensagem de vitória/erro, atualiza cor e texto
+      if (messageEl.textContent === translations[lang].winMessage) {
+        messageEl.style.color = 'green';
+      }
+      if (messageEl.textContent === translations[lang].errorMessage) {
+        messageEl.style.color = 'red';
+      }
     }
 
     function mudarIdioma() {
       atualizarIdioma();
     }
 
-    // Inicializa idioma padrão
     document.addEventListener('DOMContentLoaded', atualizarIdioma);
   </script>
 </body>
 </html>
+```
