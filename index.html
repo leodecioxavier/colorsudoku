@@ -43,6 +43,8 @@
       flex-wrap: wrap;
       gap: 10px;
       margin-bottom: 20px;
+      min-height: 44px; /* mantém área de drop mesmo quando vazia */
+      align-items: center;
     }
     .ball {
       width: 40px;
@@ -55,7 +57,7 @@
     .message {
       margin-top: 10px;
       font-weight: bold;
-      color: green; /* cor padrão para vitória */
+      color: green;
     }
 
     .button {
@@ -114,7 +116,6 @@
   <audio id="sound-win" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_1418bfa15b.mp3?filename=success-1-6297.mp3"></audio>
 
   <script>
-    // Traduções
     const translations = {
       pt: {
         title: "Sudoku de Cores",
@@ -172,7 +173,6 @@
       }
     };
 
-    // Elementos do DOM
     const board     = document.getElementById('board');
     const palette   = document.getElementById('palette');
     const messageEl = document.getElementById('message');
@@ -242,7 +242,7 @@
 
     palette.addEventListener('dragover', e => e.preventDefault());
     palette.addEventListener('drop', e => {
-      e.preventDefault();  // garante que o drop seja aceito sempre
+      e.preventDefault();
       const id   = e.dataTransfer.getData('id');
       const ball = document.querySelector(`.ball[data-id="${id}"]`);
       if (!ball) return;
@@ -257,7 +257,6 @@
       const lang = document.getElementById('lang-select').value;
       const t    = translations[lang];
 
-      // monta a grade 3x6
       const grid = Array.from({ length: 3 }, () => Array(6).fill(null));
       cells.forEach((c, i) => {
         const r = Math.floor(i / 6), ci = i % 6;
@@ -265,14 +264,13 @@
         if (b) grid[r][ci] = b.dataset.color;
       });
 
-      // se ainda houver espaço vazio, limpa mensagem e volta ao estado padrão
       if (grid.flat().includes(null)) {
         messageEl.textContent = '';
-        messageEl.style.color = ''; 
+        messageEl.style.color = '';
         return;
       }
 
-      // valida linhas
+      // validações...
       for (let i = 0; i < 3; i++) {
         const s = new Set();
         for (let j = 0; j < 6; j++) {
@@ -284,8 +282,6 @@
           s.add(grid[i][j]);
         }
       }
-
-      // valida colunas
       for (let j = 0; j < 6; j++) {
         const s = new Set();
         for (let i = 0; i < 3; i++) {
@@ -297,12 +293,7 @@
           s.add(grid[i][j]);
         }
       }
-
-      // valida adjacências (incluindo diagonais)
-      const dirs = [
-        [-1,0],[1,0],[0,-1],[0,1],
-        [-1,-1],[-1,1],[1,-1],[1,1]
-      ];
+      const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
       for (let i = 0; i < 3; i++) {
         for (let j = 0; j < 6; j++) {
           for (const [dx, dy] of dirs) {
@@ -320,7 +311,6 @@
         }
       }
 
-      // tudo certo → vitória
       messageEl.textContent = t.winMessage;
       messageEl.style.color = 'green';
       soundWin.play();
@@ -367,13 +357,8 @@
       document.getElementById('label-language').textContent      = t.language;
       document.getElementById('btnToggleMode').textContent       = t.toggleMode;
 
-      // se já havia mensagem de vitória/erro, atualiza cor e texto
-      if (messageEl.textContent === translations[lang].winMessage) {
-        messageEl.style.color = 'green';
-      }
-      if (messageEl.textContent === translations[lang].errorMessage) {
-        messageEl.style.color = 'red';
-      }
+      if (messageEl.textContent === t.winMessage)  messageEl.style.color = 'green';
+      if (messageEl.textContent === t.errorMessage) messageEl.style.color = 'red';
     }
 
     function mudarIdioma() {
@@ -384,4 +369,3 @@
   </script>
 </body>
 </html>
-```
