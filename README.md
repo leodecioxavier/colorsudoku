@@ -3,7 +3,7 @@
 Este é um jogo interativo estilo Sudoku com cores, onde o jogador deve preencher o tabuleiro respeitando regras similares às do Sudoku clássico — mas com bolinhas coloridas!
 
 🔗 **Acesse o jogo online aqui:**  
-[https://seu-usuario.github.io/seu-repositorio/](https://seu-usuario.github.io/seu-repositorio/)
+[https://leodecioxavier.github.io/colorsudoku/](https://leodecioxavier.github.io/colorsudoku/)
 
 ## 🧩 Como jogar
 
